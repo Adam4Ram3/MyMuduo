@@ -27,7 +27,7 @@ public:
     void setReadCallback(ReadEventCallback cb) { readCallback_ = std::move(cb); }
     void setWriteCallback(EventCallback cb) { writeCallback_ = std::move(cb); }
     void setCloseCallback(EventCallback cb) { closeCallback_ = std::move(cb); }
-    void setErrotCallback(EventCallback cb) { errorCallback_ = std::move(cb); }
+    void setErrorCallback(EventCallback cb) { errorCallback_ = std::move(cb); }
 
     // 防止channel被手动remove掉 防止其所有者对象被销毁，还在执行回调操作
     void tie(const std::shared_ptr<void> &);
