@@ -30,6 +30,8 @@ using MessageCallback = std::function<void(const TcpConnectionPtr &,
                                            Buffer *,
                                            Timestamp)>;
 
+using HighWaterMarkCallback = std::function<void(const TcpConnectionPtr &, size_t)>;
+
 // 这是一个空的占位类, 当前文件中主要的作用是提供一个统一的头文件名,
 // 所有的回调都定义在这里。
 class Callbacks
