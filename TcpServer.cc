@@ -12,7 +12,7 @@
  * @param loop 待检查的EventLoop指针。
  * @return EventLoop* 如果指针有效, 则原样返回。
  */
-EventLoop *checkLoopNotNull(EventLoop *loop)
+static EventLoop *checkLoopNotNull(EventLoop *loop)
 {
     if (loop == nullptr)
     {
