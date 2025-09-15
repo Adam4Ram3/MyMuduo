@@ -1,0 +1,14 @@
+# 编译产物和临时文件
+build/
+lib/
+bin/
+*.o
+*.a
+*.so
+
+# VSCode 编辑器特定的配置
+.vscode/
+
+# 操作系统生成的文件
+.DS_Store
+Thumbs.db
