@@ -164,6 +164,9 @@ public:
      */
     ssize_t readFd(int fd, int *savedErrno);
 
+    // 通过fd发送数据
+    ssize_t writeFd(int fd,int *savedErrno);
+
 private:
     // 获取缓冲区起始地址
     char *begin()

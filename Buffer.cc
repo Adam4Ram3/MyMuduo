@@ -7,9 +7,9 @@
 /**
  * @brief 从文件描述符(socket)读取数据并存入缓冲区。
  * @details
- * 这是一个非常重要的函数, 它使用 readv 系统调用进行"分散读", 
+ * 这是一个非常重要的函数, 它使用 readv 系统调用进行"分散读",
  * 这样做可以一次性将数据读入到两个缓冲区: Buffer内部的可写空间和栈上
- * 的一个临时空间。这可以避免一次读取的数据过多而导致Buffer频繁扩容, 
+ * 的一个临时空间。这可以避免一次读取的数据过多而导致Buffer频繁扩容,
  * 同时也能一次性读取尽可能多的数据, 减少read系统调用的次数, 提升性能。
  * * @param fd 要读取的文件描述符。
  * @param savedErrno [输出参数] 用于保存读取过程中发生的错误码。
@@ -19,10 +19,10 @@ ssize_t Buffer::readFd(int fd, int *savedErrno)
 {
     // 在栈上创建一个临时的额外缓冲区
     char extraBuf[65536]; // 64K
-    
+
     struct iovec vec[2];
     const size_t writable = writableBytes();
-    
+
     // 第一块缓冲区指向 Buffer 内部的可写空间
     vec[0].iov_base = begin() + writerIndex_;
     vec[0].iov_len = writable;
@@ -54,6 +54,31 @@ ssize_t Buffer::readFd(int fd, int *savedErrno)
     return n;
 }
 
+/**
+ * @brief 将缓冲区中当前可读的数据一次性写入到文件描述符 (socket)。
+ * @details
+ * 写操作相对简单：直接把 [readerIndex_, writerIndex_) 这一段连续内存
+ * 通过 ::write 发出去。
+ * 特点与说明：
+ * 1. 只调用一次 write，未使用 writev，因为发送区本身就是连续的。
+ * 2. 若写入成功，返回写出的字节数；这里不主动前移 readerIndex_，
+ *    上层（如 TcpConnection::handleWrite）根据返回值决定调用 retrieve(n)。
+ * 3. 若返回 -1，表示写失败（例如 EAGAIN / EWOULDBLOCK），错误码通过 savedErrno 传出。
+ * 4. 若写满对端发送缓冲区，会出现 EAGAIN，此时应等待下次 EPOLLOUT 事件再继续发送。
+ *
+ * @param fd 目标文件描述符（通常是 socket）。
+ * @param savedErrno [输出] 若写失败，保存 errno 供上层决策（是否重试或关闭）。
+ * @return ssize_t 写入的字节数；-1 表示出错；0 很少出现（通常表示对端异常）。
+ */
+ssize_t Buffer::writeFd(int fd, int *savedErrno)
+{
+    ssize_t n = ::write(fd, peek(), readableBytes());
+    if (n < 0)
+    {
+        *savedErrno = errno;
+    }
+    return n;
+}
 
 /**
  * @brief 当可写空间不足时, 用于整理或扩容缓冲区的内部函数。
