@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10) # 建议使用一个更新的版本，如3.
 project(mymuduo CXX) # 明确项目使用的语言是C++
 
 # 2. 使用现代方式设置C++标准
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 开启更多警告，并将警告视为错误（开发阶段强烈推荐）
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -Wformat -Wformat-security")
