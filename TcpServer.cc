@@ -1,5 +1,6 @@
 #include "TcpServer.h"
 #include "Logger.h"
+#include "TcpConnection.h"
 
 #include <functional>
 #include <strings.h> // bzero in older systems
@@ -54,6 +55,10 @@ TcpServer::TcpServer(EventLoop *loop,
                                                   std::placeholders::_1, std::placeholders::_2));
 }
 
+TcpServer::~TcpServer()
+{
+}
+
 /**
  * @brief 设置 subLoop (I/O工作线程) 的数量。
  * @param numThreads I/O线程的数量。
@@ -94,8 +99,8 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr)
     // 这是一个临时的实现, 以便通过编译器的严格检查。
     // (void)sockfd; 的写法是向编译器明确表示, 我知道这个参数存在, 但我暂时故意不用它。
     // 这是消除 "-Wunused-parameter" 警告/错误的常用方法。
-    (void)sockfd;
-    (void)peerAddr;
+    // (void)sockfd;
+    // (void)peerAddr;
 
     /**
      * 【未来的完整逻辑】
@@ -108,6 +113,57 @@ void TcpServer::newConnection(int sockfd, const InetAddress &peerAddr)
      * 6. 将新的conn添加到TcpServer的ConnectionMap中进行管理。
      * 7. 调用ioLoop->runInLoop(), 在选中的subLoop线程中执行TcpConnection::connectEstablished。
      */
+    EventLoop *ioLoop = threadPool_->getNextLoop();
+    char buf[64] = {0};
+    snprintf(buf, sizeof buf, "-%s#%d", ipPort_.c_str(), nextConnId_);
+    ++nextConnId_;
+    std::string connName = name_ + buf;
+
+    LOG_INFO("TcpServer::connection [%s] - new connection [%s] from %s",
+             name_.c_str(), connName.c_str(), peerAddr.toIpPort().c_str());
+
+    // 通过sockfd获取其绑定的本机的ip地址和端口信息
+    sockaddr_in local;
+    ::memset(&local, 0, sizeof(local));
+    socklen_t addrlen = sizeof(local);
+    if (::getsockname(sockfd, (sockaddr *)&local, &addrlen) < 0)
+    {
+        LOG_ERROR("sockets::getLocalAddr");
+    }
+
+    InetAddress localAddr(local);
+    TcpConnectionPtr conn(new TcpConnection(ioLoop,
+                                            connName,
+                                            sockfd,
+                                            localAddr,
+                                            peerAddr));
+    connections_[connName] = conn;
+    // 下面的回调都是用户设置给TcpServer => TcpConnection的，至于Channel绑定的则是TcpConnection设置的四个，handleRead,handleWrite... 这下面的回调用于handlexxx函数中
+    conn->setConnectionCallback(connectionCallback_);
+    conn->setMessageCallback(messageCallback_);
+    conn->setWriteCompleteCallback(writeCompleteCallback_);
+
+    // 设置了如何关闭连接的回调
+    conn->setCloseCallback(
+        std::bind(&TcpServer::removeConnection, this, std::placeholders::_1));
+
+    ioLoop->runInLoop(
+        std::bind(&TcpConnection::connectEstablished, conn));
 }
 
-// ... 您未来会实现的 removeConnection 和 removeConnectionInLoop ...
+void TcpServer::removeConnection(const TcpConnectionPtr &conn)
+{
+    loop_->runInLoop(
+        std::bind(&TcpServer::removeConnectionInLoop, this, conn));
+}
+
+void TcpServer::removeConnectionInLoop(const TcpConnectionPtr &conn)
+{
+    LOG_INFO("TcpServer::removeConnectionInLoop [%s] - connection %s\n",
+             name_.c_str(), conn->name().c_str());
+
+    connections_.erase(conn->name());
+    EventLoop *ioLoop = conn->getLoop();
+    ioLoop->queueInLoop(
+        std::bind(&TcpConnection::connectDestroyed, conn));
+}
