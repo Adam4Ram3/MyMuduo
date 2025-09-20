@@ -57,6 +57,23 @@ TcpServer::TcpServer(EventLoop *loop,
 
 TcpServer::~TcpServer()
 {
+    // 遍历服务器管理的所有连接
+    for (auto &item : connections_)
+    {
+        // item.second 是一个 TcpConnectionPtr (shared_ptr)
+        // 创建一个局部 TcpConnectionPtr 变量 conn, 延长该连接对象的生命周期,
+        // 防止在 conn->connectDestroyed() 调用期间, 连接对象因为map的清理而被意外销毁。
+        TcpConnectionPtr conn(item.second);
+        item.second.reset(); // 从 map 中释放对 conn 的引用
+
+        // 获取该连接所属的 subLoop
+        EventLoop *ioLoop = conn->getLoop();
+        
+        // 将连接的“最终清理”任务, 派发给它所属的 subLoop 线程去执行。
+        // 这是为了保证线程安全, 因为 Channel 的移除等操作必须在它所属的 loop 中进行。
+        ioLoop->runInLoop(
+            std::bind(&TcpConnection::connectDestroyed, conn));
+    }
 }
 
 /**
