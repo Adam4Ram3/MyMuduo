@@ -6,6 +6,8 @@
 #include "noncopyable.h"
 #include "EventLoopThreadPool.h"
 #include "Callbacks.h" // 引入上面定义的回调类型
+#include "TcpConnection.h"
+#include "Buffer.h"
 
 #include <functional>
 #include <string>
