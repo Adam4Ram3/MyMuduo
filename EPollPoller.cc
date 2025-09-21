@@ -209,7 +209,7 @@ void EPollPoller::update(int operation, Channel *channel)
     int fd = channel->fd();
     event.events = channel->events();
     event.data.ptr = channel;
-    event.data.fd = fd;
+    // event.data.fd = fd;
 
     if (::epoll_ctl(epollfd_, operation, fd, &event) < 0)
     {
